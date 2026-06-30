@@ -9,6 +9,8 @@ Required files:
 ```txt
 storage/templates/pledge/pledge-template.pdf
 storage/templates/pledge/pdf-field-map.json
+public/templates/pledge/pledge-template.pdf
+public/templates/pledge/pdf-field-map.json
 public/fonts/NanumGothic-Regular.ttf
 public/fonts/NanumGothic-Bold.ttf
 ```
@@ -40,7 +42,10 @@ entry, Vercel install fails with `ERR_PNPM_IGNORED_BUILDS`.
 
 ## Storage
 
-Generated PDFs are stored under `PLEDGE_OUTPUT_DIR`:
+Production PDF creation returns the generated PDF directly to the browser. The
+current Vercel deployment does not persist pledge PDFs on the server.
+
+The legacy local storage API can store generated PDFs under `PLEDGE_OUTPUT_DIR`:
 
 ```txt
 storage/pledges/
@@ -51,7 +56,7 @@ storage/pledges/
       YYYYMMDD_기부자명_금액.pdf
 ```
 
-The `.index` directory maps a submission ID to the generated PDF path. Do not expose `storage/pledges` as a static public directory. PDF downloads should go through `/api/pledges/:id/pdf`.
+The `.index` directory maps a submission ID to the generated PDF path. Do not expose `storage/pledges` as a static public directory.
 
 ## Backup
 

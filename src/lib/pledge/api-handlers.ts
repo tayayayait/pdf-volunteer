@@ -2,7 +2,7 @@ import { readFile } from "node:fs/promises";
 import { z } from "zod";
 
 import { createPledgeInputSchema } from "./pledge-create-schema";
-import { createPledgeRecord, resolvePledgePdf } from "./pledge-service";
+import { createPledgePdf, createPledgeRecord, resolvePledgePdf } from "./pledge-service";
 
 const NO_STORE_HEADERS = {
   "cache-control": "no-store, max-age=0",
@@ -21,6 +21,15 @@ const jsonResponse = (body: unknown, status = 200): Response =>
 const errorResponse = (code: string, message: string, status: number): Response =>
   jsonResponse({ error: { code, message } }, status);
 
+const pdfResponse = (pdfBytes: Uint8Array, fileName: string): Response =>
+  new Response(pdfBytes, {
+    headers: {
+      "content-type": "application/pdf",
+      "content-disposition": `attachment; filename*=UTF-8''${encodeURIComponent(fileName)}`,
+      ...NO_STORE_HEADERS,
+    },
+  });
+
 const createPledgeApi = async (request: Request): Promise<Response> => {
   try {
     const input = createPledgeInputSchema.parse(await request.json());
@@ -38,6 +47,21 @@ const createPledgeApi = async (request: Request): Promise<Response> => {
     }
     const code = err instanceof Error && "code" in err ? String(err.code) : "PLEDGE_CREATE_FAILED";
     const message = err instanceof Error ? err.message : "약정서 생성에 실패했습니다.";
+    return errorResponse(code, message, 500);
+  }
+};
+
+const createPledgePdfApi = async (request: Request): Promise<Response> => {
+  try {
+    const input = createPledgeInputSchema.parse(await request.json());
+    const result = await createPledgePdf(input, { assetBaseUrl: request.url });
+    return pdfResponse(result.pdfBytes, result.fileName);
+  } catch (err) {
+    if (err instanceof z.ZodError) {
+      return errorResponse("VALIDATION_FAILED", err.issues[0]?.message ?? "?낅젰媛믪씠 ?щ컮瑜댁? ?딆뒿?덈떎.", 400);
+    }
+    const code = err instanceof Error && "code" in err ? String(err.code) : "PLEDGE_PDF_FAILED";
+    const message = err instanceof Error ? err.message : "PDF ?앹꽦???ㅽ뙣?덉뒿?덈떎.";
     return errorResponse(code, message, 500);
   }
 };
@@ -68,6 +92,10 @@ export const handlePledgeApiRequest = async (request: Request): Promise<Response
 
   if (url.pathname === "/api/pledges" && request.method === "POST") {
     return createPledgeApi(request);
+  }
+
+  if (url.pathname === "/api/pledges/pdf" && request.method === "POST") {
+    return createPledgePdfApi(request);
   }
 
   const pdfMatch = url.pathname.match(/^\/api\/pledges\/([0-9a-f-]+)\/pdf$/i);

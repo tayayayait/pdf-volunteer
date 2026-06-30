@@ -9,7 +9,7 @@ export const Route = createFileRoute("/")({
       { title: `${APP_TITLE} | ${ORGANIZATION_NAME}` },
       {
         name: "description",
-        content: "태블릿에서 작성하는 전자 기부약정서. 입력 → 서명 → PDF 저장까지 한 화면에서.",
+        content: "태블릿에서 작성하는 전자 기부약정서. 입력 → 서명 → PDF 다운로드까지 한 화면에서.",
       },
     ],
   }),

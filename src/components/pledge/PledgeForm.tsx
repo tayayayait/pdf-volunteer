@@ -1,7 +1,6 @@
 import { useMemo, useRef, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useServerFn } from "@tanstack/react-start";
 import { v4 as uuid } from "uuid";
 import { toast } from "sonner";
 import {
@@ -18,6 +17,7 @@ import {
   parseAmount,
   todayISO,
 } from "@/lib/pledge/formatters";
+import { buildPledgeFileName } from "@/lib/pledge/pledge-file";
 import {
   DONATION_PURPOSES,
   DONOR_TYPES,
@@ -29,7 +29,6 @@ import {
   SignaturePadField,
   type SignaturePadHandle,
 } from "./SignaturePadField";
-import { createPledge } from "@/lib/pledge/pledge.functions";
 
 const SECTIONS = [
   { id: "donor", title: "기부자 정보" },
@@ -40,8 +39,28 @@ const SECTIONS = [
   { id: "review", title: "검토 및 생성" },
 ] as const;
 
+const fileNameFromDisposition = (disposition: string | null, fallback: string): string => {
+  if (!disposition) return fallback;
+
+  const utf8Match = disposition.match(/filename\*=UTF-8''([^;]+)/i);
+  if (utf8Match?.[1]) return decodeURIComponent(utf8Match[1]);
+
+  const asciiMatch = disposition.match(/filename="?([^";]+)"?/i);
+  return asciiMatch?.[1] ?? fallback;
+};
+
+const downloadBlob = (blob: Blob, fileName: string): void => {
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = fileName;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  URL.revokeObjectURL(url);
+};
+
 export function PledgeForm() {
-  const submitFn = useServerFn(createPledge);
   const sigRef = useRef<SignaturePadHandle>(null);
   const submissionId = useRef(uuid());
   const [submitting, setSubmitting] = useState(false);
@@ -77,18 +96,38 @@ export function PledgeForm() {
     setSubmitting(true);
     setServerError(null);
     try {
-      const result = await submitFn({
-        data: {
-          ...PENDING_TEMPLATE_DEFAULTS,
-          ...values,
-          submissionId: submissionId.current,
-        } as never,
+      const payload = {
+        ...PENDING_TEMPLATE_DEFAULTS,
+        ...values,
+        submissionId: submissionId.current,
+      };
+      const fallbackFileName = buildPledgeFileName(
+        values.pledgeDate,
+        values.donorName,
+        values.donationAmount,
+      );
+      const response = await fetch("/api/pledges/pdf", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(payload),
       });
-      toast.success(result.duplicate ? "이미 생성된 약정서입니다." : "약정서가 생성되었습니다.");
+
+      if (!response.ok) {
+        const body = (await response.json().catch(() => null)) as
+          | { error?: { message?: string } }
+          | null;
+        throw new Error(body?.error?.message ?? "PDF 생성 요청이 실패했습니다.");
+      }
+
+      const fileName = fileNameFromDisposition(
+        response.headers.get("content-disposition"),
+        fallbackFileName,
+      );
+      downloadBlob(await response.blob(), fileName);
+      toast.success("PDF 다운로드를 시작했습니다.");
       const search = new URLSearchParams();
-      search.set("fileName", result.fileName);
-      search.set("downloadUrl", result.downloadUrl);
-      window.location.assign(`/complete/${result.id}?${search.toString()}`);
+      search.set("fileName", fileName);
+      window.location.assign(`/complete/${payload.submissionId}?${search.toString()}`);
     } catch (err) {
       console.error(err);
       setServerError("PDF 생성에 실패했습니다. 입력값과 서버 상태를 확인한 뒤 다시 시도하세요.");
@@ -321,7 +360,7 @@ export function PledgeForm() {
               </>
             ) : (
               <>
-                <FileSignature className="h-5 w-5" /> PDF 생성 및 저장{" "}
+                <FileSignature className="h-5 w-5" /> PDF 생성 및 다운로드{" "}
                 <ChevronRight className="h-5 w-5" />
               </>
             )}

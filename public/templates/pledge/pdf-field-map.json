@@ -1,0 +1,75 @@
+{
+  "template": "pledge-template.pdf",
+  "pageSize": "A4",
+  "fields": {
+    "pledgeDate": {
+      "page": 1,
+      "x": 51,
+      "y": 633,
+      "width": 132,
+      "height": 19,
+      "align": "center"
+    },
+    "donorName": {
+      "page": 1,
+      "x": 221,
+      "y": 633,
+      "width": 152,
+      "height": 19
+    },
+    "donorType": {
+      "page": 1,
+      "x": 411,
+      "y": 633,
+      "width": 133,
+      "height": 19,
+      "align": "center"
+    },
+    "contact": {
+      "page": 1,
+      "x": 51,
+      "y": 542,
+      "width": 202,
+      "height": 19
+    },
+    "address": {
+      "page": 1,
+      "x": 291,
+      "y": 542,
+      "width": 253,
+      "height": 19
+    },
+    "donationAmount": {
+      "page": 1,
+      "x": 51,
+      "y": 451,
+      "width": 202,
+      "height": 19,
+      "align": "right",
+      "fontSize": 10.5
+    },
+    "donationPurpose": {
+      "page": 1,
+      "x": 291,
+      "y": 451,
+      "width": 253,
+      "height": 19
+    },
+    "paymentMethod": {
+      "page": 1,
+      "x": 51,
+      "y": 360,
+      "width": 202,
+      "height": 19,
+      "align": "center"
+    },
+    "signaturePng": {
+      "page": 1,
+      "x": 70,
+      "y": 208,
+      "width": 455.28,
+      "height": 56,
+      "fit": "contain"
+    }
+  }
+}

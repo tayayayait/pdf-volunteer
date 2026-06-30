@@ -5,9 +5,12 @@ import fontkit from "@pdf-lib/fontkit";
 
 const root = process.cwd();
 const outputDir = join(root, "storage", "templates", "pledge");
+const publicOutputDir = join(root, "public", "templates", "pledge");
 const fontDir = join(root, "public", "fonts");
 const templatePath = join(outputDir, "pledge-template.pdf");
 const mapPath = join(outputDir, "pdf-field-map.json");
+const publicTemplatePath = join(publicOutputDir, "pledge-template.pdf");
+const publicMapPath = join(publicOutputDir, "pdf-field-map.json");
 
 const A4_W = 595.28;
 const A4_H = 841.89;
@@ -71,7 +74,10 @@ const section = (page, title, y, font) => {
 
 const fields = {};
 
-await mkdir(outputDir, { recursive: true });
+await Promise.all([
+  mkdir(outputDir, { recursive: true }),
+  mkdir(publicOutputDir, { recursive: true }),
+]);
 
 const pdfDoc = await PDFDocument.create();
 pdfDoc.registerFontkit(fontkit);
@@ -166,7 +172,15 @@ const fieldMap = {
   fields,
 };
 
-await writeFile(templatePath, await pdfDoc.save());
-await writeFile(mapPath, `${JSON.stringify(fieldMap, null, 2)}\n`, "utf8");
+const templateBytes = await pdfDoc.save();
+const mapJson = `${JSON.stringify(fieldMap, null, 2)}\n`;
+await Promise.all([
+  writeFile(templatePath, templateBytes),
+  writeFile(mapPath, mapJson, "utf8"),
+  writeFile(publicTemplatePath, templateBytes),
+  writeFile(publicMapPath, mapJson, "utf8"),
+]);
 console.log(`Generated ${templatePath}`);
 console.log(`Generated ${mapPath}`);
+console.log(`Generated ${publicTemplatePath}`);
+console.log(`Generated ${publicMapPath}`);

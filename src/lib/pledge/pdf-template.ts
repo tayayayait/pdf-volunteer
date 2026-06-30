@@ -22,7 +22,8 @@ export type PdfFieldMap = {
 };
 
 export type PdfTemplateConfig = {
-  templatePath: string;
+  templatePath?: string;
+  templateBytes?: Uint8Array;
   fieldMap: PdfFieldMap;
 };
 
@@ -55,6 +56,17 @@ const REQUIRED_FIELDS = [
 
 export const getDefaultPdfTemplateDir = (): string =>
   process.env.PLEDGE_TEMPLATE_DIR ?? join(process.cwd(), "storage", "templates", "pledge");
+
+const publicTemplateUrl = (assetBaseUrl: string | URL, path: string): URL =>
+  new URL(`/templates/pledge/${path}`, assetBaseUrl);
+
+const fetchRequired = async (url: URL, code: PdfTemplateErrorCode): Promise<Response> => {
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new PdfTemplateError(code, `PDF asset request failed: ${url.pathname}`);
+  }
+  return response;
+};
 
 const isFinitePositiveNumber = (value: unknown): value is number =>
   typeof value === "number" && Number.isFinite(value) && value > 0;
@@ -138,4 +150,43 @@ export const loadPdfTemplateConfig = async (
   }
 
   return { templatePath, fieldMap: validation.value };
+};
+
+export const loadPublicPdfTemplateConfig = async (
+  assetBaseUrl: string | URL,
+): Promise<PdfTemplateConfig> => {
+  let rawMap: string;
+  try {
+    rawMap = await (await fetchRequired(
+      publicTemplateUrl(assetBaseUrl, "pdf-field-map.json"),
+      "PDF_FIELD_MAP_NOT_FOUND",
+    )).text();
+  } catch (error) {
+    if (error instanceof PdfTemplateError) throw error;
+    throw new PdfTemplateError(
+      "PDF_FIELD_MAP_NOT_FOUND",
+      "PDF field map could not be loaded from public assets.",
+    );
+  }
+
+  const parsed = JSON.parse(rawMap) as unknown;
+  const validation = validatePdfFieldMap(parsed);
+  if (!validation.ok) {
+    throw new PdfTemplateError(validation.code, validation.message);
+  }
+
+  try {
+    const response = await fetchRequired(
+      publicTemplateUrl(assetBaseUrl, validation.value.template),
+      "PDF_TEMPLATE_NOT_FOUND",
+    );
+    const templateBytes = new Uint8Array(await response.arrayBuffer());
+    return { templateBytes, fieldMap: validation.value };
+  } catch (error) {
+    if (error instanceof PdfTemplateError) throw error;
+    throw new PdfTemplateError(
+      "PDF_TEMPLATE_NOT_FOUND",
+      "PDF template could not be loaded from public assets.",
+    );
+  }
 };

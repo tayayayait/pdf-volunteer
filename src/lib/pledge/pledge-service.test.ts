@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { randomUUID } from "node:crypto";
 import { describe, expect, it } from "vitest";
 
-import { createPledgeRecord, resolvePledgePdf } from "./pledge-service";
+import { createPledgePdf, createPledgeRecord, resolvePledgePdf } from "./pledge-service";
 import type { CreatePledgeInput } from "./pledge-create-schema";
 
 const validInput = (submissionId = randomUUID()): CreatePledgeInput => ({
@@ -44,6 +44,21 @@ const createTempDir = async (): Promise<string> => {
 };
 
 describe("pledge creation storage", () => {
+  it("generates PDF bytes and a regulated file name without writing storage", async () => {
+    const input = validInput();
+
+    const result = await createPledgePdf(input, {
+      renderPdf: async () => new Uint8Array([37, 80, 68, 70]),
+    });
+
+    expect(result).toEqual({
+      id: input.submissionId,
+      status: "generated",
+      fileName: "20260629_홍길동_10000000.pdf",
+      pdfBytes: new Uint8Array([37, 80, 68, 70]),
+    });
+  });
+
   it("stores the generated PDF in local storage and resolves it by submission id", async () => {
     const storageRoot = await createTempDir();
     const input = validInput();

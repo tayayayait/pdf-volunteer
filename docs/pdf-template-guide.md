@@ -10,9 +10,18 @@ Place template files here by default:
 storage/templates/pledge/
   pledge-template.pdf
   pdf-field-map.json
+
+public/templates/pledge/
+  pledge-template.pdf
+  pdf-field-map.json
 ```
 
-Set `PLEDGE_TEMPLATE_DIR` to use a different directory.
+The `public/templates/pledge` copy is used by the Vercel runtime because server
+functions cannot rely on arbitrary repository files being available at runtime.
+Run `node scripts/generate-sample-pledge-template.mjs` to refresh both copies.
+
+Set `PLEDGE_TEMPLATE_DIR` to use a different local directory for file-system
+based rendering.
 
 ## Required Fields
 

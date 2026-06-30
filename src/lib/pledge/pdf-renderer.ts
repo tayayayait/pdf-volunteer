@@ -11,12 +11,22 @@ import {
   labelOf,
 } from "./labels";
 import { formatAmount, formatDateDot, formatDateKorean } from "./formatters";
-import { loadPdfTemplateConfig, type PdfFieldBox, type PdfFieldMap } from "./pdf-template";
+import {
+  loadPdfTemplateConfig,
+  loadPublicPdfTemplateConfig,
+  type PdfFieldBox,
+  type PdfFieldMap,
+} from "./pdf-template";
 import type { PledgeInput } from "./schema";
 
 type PdfFonts = {
   regular: PDFFont;
   bold: PDFFont;
+};
+
+type RenderPledgePdfOptions = {
+  templateDir?: string;
+  assetBaseUrl?: string | URL;
 };
 
 const INK = rgb(0.09, 0.13, 0.17);
@@ -32,13 +42,31 @@ class PdfFieldOverflowError extends Error {
   }
 }
 
-const loadPdfFonts = async (pdfDoc: PDFDocument): Promise<PdfFonts> => {
+const publicAssetUrl = (assetBaseUrl: string | URL, path: string): URL =>
+  new URL(path, new URL("/", assetBaseUrl));
+
+const fetchBytes = async (url: URL): Promise<Uint8Array> => {
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error(`PDF asset request failed: ${url.pathname}`);
+  }
+  return new Uint8Array(await response.arrayBuffer());
+};
+
+const loadPdfFonts = async (
+  pdfDoc: PDFDocument,
+  assetBaseUrl?: string | URL,
+): Promise<PdfFonts> => {
   pdfDoc.registerFontkit(fontkit);
-  const fontDir = join(process.cwd(), "public", "fonts");
-  const [regularBytes, boldBytes] = await Promise.all([
-    readFile(join(fontDir, "NanumGothic-Regular.ttf")),
-    readFile(join(fontDir, "NanumGothic-Bold.ttf")),
-  ]);
+  const [regularBytes, boldBytes] = assetBaseUrl
+    ? await Promise.all([
+        fetchBytes(publicAssetUrl(assetBaseUrl, "/fonts/NanumGothic-Regular.ttf")),
+        fetchBytes(publicAssetUrl(assetBaseUrl, "/fonts/NanumGothic-Bold.ttf")),
+      ])
+    : await Promise.all([
+        readFile(join(process.cwd(), "public", "fonts", "NanumGothic-Regular.ttf")),
+        readFile(join(process.cwd(), "public", "fonts", "NanumGothic-Bold.ttf")),
+      ]);
 
   const [regular, bold] = await Promise.all([
     pdfDoc.embedFont(regularBytes, { subset: false }),
@@ -175,12 +203,16 @@ const drawFields = (
 
 export const renderPledgePdf = async (
   data: PledgeInput,
-  templateDir?: string,
+  options?: string | RenderPledgePdfOptions,
 ): Promise<Uint8Array> => {
-  const { templatePath, fieldMap } = await loadPdfTemplateConfig(templateDir);
-  const templateBytes = await readFile(templatePath);
+  const renderOptions = typeof options === "string" ? { templateDir: options } : (options ?? {});
+  const { templatePath, templateBytes: publicTemplateBytes, fieldMap } =
+    renderOptions.assetBaseUrl
+      ? await loadPublicPdfTemplateConfig(renderOptions.assetBaseUrl)
+      : await loadPdfTemplateConfig(renderOptions.templateDir);
+  const templateBytes = publicTemplateBytes ?? (await readFile(templatePath!));
   const pdfDoc = await PDFDocument.load(templateBytes);
-  const fonts = await loadPdfFonts(pdfDoc);
+  const fonts = await loadPdfFonts(pdfDoc, renderOptions.assetBaseUrl);
   await drawFields(pdfDoc, fieldMap, fonts, data);
   return pdfDoc.save();
 };

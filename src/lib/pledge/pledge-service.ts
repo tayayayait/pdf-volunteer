@@ -14,6 +14,13 @@ export type CreatePledgeResult = {
   duplicate: boolean;
 };
 
+export type CreatePledgePdfResult = {
+  id: string;
+  status: "generated";
+  fileName: string;
+  pdfBytes: Uint8Array;
+};
+
 export type PledgePdfLocation = {
   id: string;
   fileName: string;
@@ -30,6 +37,7 @@ type PledgeIndexRecord = {
 type CreatePledgeOptions = {
   storageRoot?: string;
   renderPdf?: (data: CreatePledgeInput) => Promise<Uint8Array>;
+  assetBaseUrl?: string | URL;
   now?: Date;
 };
 
@@ -144,5 +152,22 @@ export const createPledgeRecord = async (
     fileName,
     downloadUrl: `/api/pledges/${data.submissionId}/pdf`,
     duplicate: false,
+  };
+};
+
+export const createPledgePdf = async (
+  data: CreatePledgeInput,
+  options: Pick<CreatePledgeOptions, "renderPdf" | "assetBaseUrl"> = {},
+): Promise<CreatePledgePdfResult> => {
+  const fileName = buildPledgeFileName(data.pledgeDate, data.donorName, data.donationAmount);
+  const pdfBytes = options.renderPdf
+    ? await options.renderPdf(data)
+    : await renderPledgePdf(data, { assetBaseUrl: options.assetBaseUrl });
+
+  return {
+    id: data.submissionId,
+    status: "generated",
+    fileName,
+    pdfBytes,
   };
 };
