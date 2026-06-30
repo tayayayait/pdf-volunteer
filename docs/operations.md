@@ -35,6 +35,9 @@ Recommended Vercel settings:
 
 The Vite/Nitro config pins the production target to `vercel`.
 
+`pnpm-workspace.yaml` allows the `esbuild` dependency build script. Without this
+entry, Vercel install fails with `ERR_PNPM_IGNORED_BUILDS`.
+
 ## Storage
 
 Generated PDFs are stored under `PLEDGE_OUTPUT_DIR`:
