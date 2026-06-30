@@ -21,6 +21,20 @@ Optional environment variables:
 | `PLEDGE_OUTPUT_DIR` | `storage/pledges` | Generated PDF storage directory |
 | `VITE_ORGANIZATION_NAME` or `ORGANIZATION_NAME` | `샘플대학교` | Header organization name |
 
+## Vercel Deployment
+
+Use `pnpm-lock.yaml` as the package-manager source of truth.
+
+Recommended Vercel settings:
+
+| Setting | Value |
+|---|---|
+| Install command | `pnpm install` |
+| Build command | `npm run build` |
+| Framework preset | Other |
+
+The Vite/Nitro config pins the production target to `vercel`.
+
 ## Storage
 
 Generated PDFs are stored under `PLEDGE_OUTPUT_DIR`:
